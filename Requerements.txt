@@ -1,6 +1,6 @@
 streamlit
 supabase
-fpdf
+fpdf2
 matplotlib
 pandas
 pillow
