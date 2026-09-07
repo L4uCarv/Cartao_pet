@@ -1,6 +1,0 @@
-streamlit
-supabase
-fpdf2
-matplotlib
-pandas
-pillow
