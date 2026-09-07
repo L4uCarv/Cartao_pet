@@ -84,6 +84,14 @@ st.markdown(
     .stApp {
         background-color: #FAF8F5;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #000000 !important;
+    }
+    .stApp p,
+    .stApp label,
+    .stApp [data-testid="stMarkdownContainer"],
+    .stApp [data-testid="stWidgetLabel"],
+    .stApp [data-baseweb="select"] * {
+        color: #000000 !important;
     }
     div.stButton > button:first-child {
         background-color: #4E877C !important;
@@ -110,7 +118,7 @@ st.markdown(
         border-radius: 12px !important;
     }
     h1, h2, h3, h4 {
-        color: #2F4F48 !important;
+        color: #000000 !important;
         font-weight: 700 !important;
     }
     </style>
