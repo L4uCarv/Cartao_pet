@@ -1103,30 +1103,33 @@ if not st.session_state.usuario:
         email_login = limpar_texto(st.text_input("E-mail")).lower()
         senha_login = st.text_input("Palavra-passe", type="password")
 
-        if st.button("Entrar", type="primary"):
-            if not validar_email(email_login):
-                st.warning("Introduza um e-mail válido.")
-            elif not validar_senha(senha_login):
-                st.warning("A palavra-passe deve ter pelo menos 6 caracteres.")
-            else:
-                try:
-                    res = supabase.auth.sign_in_with_password({"email": email_login, "password": senha_login})
-                    if res.user and res.session:
-                        guardar_sessao_apos_login(res.user, res.session)
-                        st.success("Login efetuado com sucesso!")
-                        st.rerun()
-                except Exception:
-                    st.error("Credenciais inválidas. Verifique os dados inseridos.")
+        col_login, col_recuperar = st.columns(2)
+        with col_login:
+            if st.button("Entrar", type="primary", use_container_width=True):
+                if not validar_email(email_login):
+                    st.warning("Introduza um e-mail válido.")
+                elif not validar_senha(senha_login):
+                    st.warning("A palavra-passe deve ter pelo menos 6 caracteres.")
+                else:
+                    try:
+                        res = supabase.auth.sign_in_with_password({"email": email_login, "password": senha_login})
+                        if res.user and res.session:
+                            guardar_sessao_apos_login(res.user, res.session)
+                            st.success("Login efetuado com sucesso!")
+                            st.rerun()
+                    except Exception:
+                        st.error("Credenciais inválidas. Verifique os dados inseridos.")
 
-        if st.button("Esqueci a palavra-passe", key="btn_recuperar_senha"):
-            if not validar_email(email_login):
-                st.warning("Introduza um e-mail válido para recuperar a palavra-passe.")
-            else:
-                try:
-                    supabase.auth.reset_password_for_email(email_login)
-                    st.success("Se o e-mail estiver registado, receberá uma mensagem para redefinir a palavra-passe.")
-                except Exception:
-                    st.error("Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.")
+        with col_recuperar:
+            if st.button("Esqueci a palavra-passe", key="btn_recuperar_senha", use_container_width=True):
+                if not validar_email(email_login):
+                    st.warning("Introduza um e-mail válido para recuperar a palavra-passe.")
+                else:
+                    try:
+                        supabase.auth.reset_password_for_email(email_login)
+                        st.success("Se o e-mail estiver registado, receberá uma mensagem para redefinir a palavra-passe.")
+                    except Exception:
+                        st.error("Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.")
 
     elif menu_auth == "Criar Conta":
         st.subheader("📝 Registo de Novo Utilizador")
