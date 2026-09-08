@@ -1118,6 +1118,16 @@ if not st.session_state.usuario:
                 except Exception:
                     st.error("Credenciais inválidas. Verifique os dados inseridos.")
 
+        if st.button("Esqueci a palavra-passe", key="btn_recuperar_senha"):
+            if not validar_email(email_login):
+                st.warning("Introduza um e-mail válido para recuperar a palavra-passe.")
+            else:
+                try:
+                    supabase.auth.reset_password_for_email(email_login)
+                    st.success("Se o e-mail estiver registado, receberá uma mensagem para redefinir a palavra-passe.")
+                except Exception:
+                    st.error("Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.")
+
     elif menu_auth == "Criar Conta":
         st.subheader("📝 Registo de Novo Utilizador")
         tipo_conta = st.radio("Selecione o perfil:", ["Tutor", "Criador", "Clínica Veterinária"])
