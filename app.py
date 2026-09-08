@@ -1120,7 +1120,7 @@ if not st.session_state.usuario:
 
     elif menu_auth == "Criar Conta":
         st.subheader("📝 Registo de Novo Utilizador")
-        tipo_conta = st.radio("Selecione o perfil:", ["Tutor", "Criador", "Clínica Veterinária", "Administrador"])
+        tipo_conta = st.radio("Selecione o perfil:", ["Tutor", "Criador", "Clínica Veterinária"])
 
         if tipo_conta == "Tutor":
             nome = limpar_texto(st.text_input("Nome Completo do Tutor"))
@@ -1139,11 +1139,9 @@ if not st.session_state.usuario:
             email = limpar_texto(st.text_input("E-mail Institucional")).lower()
             senha = st.text_input("Palavra-passe", type="password")
             nome_canil = None
-        else: # Administrador
-            nome = limpar_texto(st.text_input("Nome do Administrador"))
-            email = limpar_texto(st.text_input("E-mail")).lower()
-            senha = st.text_input("Palavra-passe", type="password")
-            nome_canil, nif = None, None
+        else:
+            st.error("Perfil de conta inválido.")
+            st.stop()
 
         if st.button("Concluir Registo", type="primary"):
             if not nome:
@@ -1160,7 +1158,7 @@ if not st.session_state.usuario:
                 try:
                     res = supabase.auth.sign_up({"email": email, "password": senha})
                     if res.user:
-                        tipo_perfil_val = "Clinica" if tipo_conta == "Clínica Veterinária" else ("ADMINISTRADOR" if tipo_conta == "Administrador" else tipo_conta)
+                        tipo_perfil_val = "Clinica" if tipo_conta == "Clínica Veterinária" else tipo_conta
                         perfil_dict = {
                             "id": res.user.id,
                             "nome": nome,
