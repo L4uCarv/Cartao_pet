@@ -1239,7 +1239,20 @@ else:
         
         if todos_tutores:
             df_admin = pd.DataFrame(todos_tutores)
-            st.dataframe(df_admin[["nome", "email", "tipo_perfil", "status", "data_pagamento"]], use_container_width=True)
+            df_admin["tipo_perfil"] = df_admin["tipo_perfil"].apply(normalizar_tipo_perfil)
+            ordem_perfis = ["ADMINISTRADOR", "Tutor", "Criador", "Clinica"]
+            nomes_perfis = {
+                "ADMINISTRADOR": "Administradores",
+                "Tutor": "Tutores",
+                "Criador": "Criadores",
+                "Clinica": "Clínicas Veterinárias",
+            }
+
+            for tipo in ordem_perfis:
+                df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
+                if not df_tipo.empty:
+                    st.markdown(f"#### {nomes_perfis[tipo]}")
+                    st.dataframe(df_tipo, use_container_width=True, hide_index=True)
             
             st.markdown("#### ⚙️ Atualizar Utilizador")
             col_adm1, col_adm2, col_adm3 = st.columns(3)
