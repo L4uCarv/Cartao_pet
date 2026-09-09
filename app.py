@@ -1247,11 +1247,17 @@ else:
                 "Criador": "Criadores",
                 "Clinica": "Clínicas Veterinárias",
             }
+            tipos_existentes = df_admin["tipo_perfil"].dropna().unique().tolist()
+            tipos_para_exibir = ordem_perfis + [
+                tipo for tipo in tipos_existentes if tipo not in ordem_perfis
+            ]
 
-            for tipo in ordem_perfis:
+            st.caption(f"Total de perfis encontrados: {len(df_admin)}")
+            for tipo in tipos_para_exibir:
                 df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
                 if not df_tipo.empty:
-                    st.markdown(f"#### {nomes_perfis[tipo]}")
+                    titulo_tipo = nomes_perfis.get(tipo, f"Perfis: {tipo}")
+                    st.markdown(f"#### {titulo_tipo}")
                     st.dataframe(df_tipo, use_container_width=True, hide_index=True)
             
             st.markdown("#### ⚙️ Atualizar Utilizador")
