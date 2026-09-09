@@ -438,6 +438,56 @@ class CartaoControlePDF(FPDF):
         super().__init__(orientation="L", unit="mm", format="A4")
         self.set_auto_page_break(auto=False)
 
+
+def gerar_pdf_relatorio_administrativo(df_admin):
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf.add_page()
+    pdf.set_title("Relatório Administrativo - Perfis")
+
+    colunas = [
+        ("Nome", 48),
+        ("E-mail", 58),
+        ("Perfil", 34),
+        ("Status", 24),
+        ("Data Pagamento", 34),
+        ("Animais", 22),
+    ]
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 8, "Relatório Administrativo - Perfis cadastrados", 0, 1, "C")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 6, f"Total de perfis: {len(df_admin)}", 0, 1, "L")
+
+    for tipo in df_admin["tipo_perfil"].dropna().unique():
+        df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
+        pdf.ln(3)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 6, f"Perfil: {tipo}", 0, 1, "L")
+        pdf.set_fill_color(78, 135, 124)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 7)
+        for titulo, largura in colunas:
+            pdf.cell(largura, 6, titulo, 1, 0, "C", True)
+        pdf.ln()
+
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font("Helvetica", "", 7)
+        for _, perfil in df_tipo.iterrows():
+            valores = [
+                str(perfil.get("nome", ""))[:30],
+                str(perfil.get("email", ""))[:38],
+                str(perfil.get("tipo_perfil", ""))[:22],
+                str(perfil.get("status", ""))[:14],
+                str(perfil.get("data_pagamento", ""))[:16],
+                str(perfil.get("animais_cadastrados", 0)),
+            ]
+            for valor, (_, largura) in zip(valores, colunas):
+                pdf.cell(largura, 5, valor, 1, 0, "L")
+            pdf.ln()
+
+    return obter_bytes_pdf(pdf)
+
+
 def desenhar_calendario(pdf, x, y, w, h, titulo, data_alvo, cor_cabecalho):
     meses_pt = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
     ano = data_alvo.year
@@ -1239,6 +1289,15 @@ else:
         
         if todos_tutores:
             df_admin = pd.DataFrame(todos_tutores)
+            pets_admin = executar_consulta(
+                lambda: supabase.table("pets").select("tutor_id").execute().data or [],
+                fallback=[],
+                mensagem_padrao="Não foi possível contar os animais cadastrados.",
+            )
+            contagem_pets = pd.Series(
+                [pet.get("tutor_id") for pet in pets_admin]
+            ).value_counts()
+            df_admin["animais_cadastrados"] = df_admin["id"].map(contagem_pets).fillna(0).astype(int)
             df_admin["tipo_perfil"] = df_admin["tipo_perfil"].apply(normalizar_tipo_perfil)
             ordem_perfis = ["ADMINISTRADOR", "Tutor", "Criador", "Clinica"]
             nomes_perfis = {
@@ -1253,6 +1312,14 @@ else:
             ]
 
             st.caption(f"Total de perfis encontrados: {len(df_admin)}")
+            st.download_button(
+                "📄 Baixar relatório em PDF",
+                data=gerar_pdf_relatorio_administrativo(df_admin),
+                file_name="relatorio_administrativo_perfis.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key="download_relatorio_admin",
+            )
             for tipo in tipos_para_exibir:
                 df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
                 if not df_tipo.empty:
