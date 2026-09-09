@@ -1026,21 +1026,31 @@ def modal_editar_vacina(pet_obj):
     if st.button("Gravar", type="primary", use_container_width=True, key="btn_modal_save_v"):
         if v_escolha != "-- Selecione uma vacina --":
             garantir_autenticacao_ativa()
-            supabase.table("vacinas").insert({
-                "pet_id": pet_obj["id"],
-                "tipo_registro": "Vacina",
-                "nome_vacina": v_escolha,
-                "dose_descricao": INFO_VACINAS[v_escolha]["cat"],
-                "doencas_protegidas": ", ".join(chk_selecionados),
-                "data_aplicacao": str(d_ap),
-                "proxima_dose": str(d_px),
-                "peso_kg": pet_obj.get("peso_atual", 0.0),
-                "vinheta": limpar_texto(v_vinheta) or None,
-                "aplicador": limpar_texto(v_aplicador) or None,
-            }).execute()
-            invalidar_cache_pet(pet_obj["id"])
-            st.success("Vacina gravada com sucesso!")
-            st.rerun()
+            try:
+                supabase.table("vacinas").insert({
+                    "pet_id": pet_obj["id"],
+                    "tipo_registro": "Vacina",
+                    "nome_vacina": v_escolha,
+                    "dose_descricao": INFO_VACINAS[v_escolha]["cat"],
+                    "doencas_protegidas": ", ".join(chk_selecionados),
+                    "data_aplicacao": str(d_ap),
+                    "proxima_dose": str(d_px),
+                    "peso_kg": pet_obj.get("peso_atual", 0.0),
+                    "vinheta": limpar_texto(v_vinheta) or None,
+                    "aplicador": limpar_texto(v_aplicador) or None,
+                }).execute()
+            except APIError as exc:
+                if "column" in str(exc).lower() and "does not exist" in str(exc).lower():
+                    st.error(
+                        "A tabela vacinas ainda não possui as colunas vinheta e aplicador. "
+                        "Crie-as no SQL Editor do Supabase e tente novamente."
+                    )
+                else:
+                    st.error(f"Não foi possível gravar a vacina: {mensagem_erro_api(exc)}")
+            else:
+                invalidar_cache_pet(pet_obj["id"])
+                st.success("Vacina gravada com sucesso!")
+                st.rerun()
         else:
             st.warning("Por favor, selecione a vacina antes de gravar.")
 
