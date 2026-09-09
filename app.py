@@ -1016,10 +1016,12 @@ def modal_editar_vacina(pet_obj):
     c1, c2 = st.columns(2)
     with c1:
         d_ap = st.date_input("Data da Aplicação", date.today(), key="m_v_ap_vazia")
+        v_vinheta = st.text_input("Vinheta (L/Val)", key="m_v_vinheta")
     with c2:
         meses = obter_meses_idade(pet_obj["data_nascimento"])
         d_sug = sugerir_proxima_vacina(v_escolha, d_ap, meses) if v_escolha != "-- Selecione uma vacina --" else date.today() + timedelta(days=21)
         d_px = st.date_input("Data Prevista para a Próxima", d_sug, key="m_v_px_vazia")
+        v_aplicador = st.text_input("Aplicador", key="m_v_aplicador")
         
     if st.button("Gravar", type="primary", use_container_width=True, key="btn_modal_save_v"):
         if v_escolha != "-- Selecione uma vacina --":
@@ -1033,6 +1035,8 @@ def modal_editar_vacina(pet_obj):
                 "data_aplicacao": str(d_ap),
                 "proxima_dose": str(d_px),
                 "peso_kg": pet_obj.get("peso_atual", 0.0),
+                "vinheta": limpar_texto(v_vinheta) or None,
+                "aplicador": limpar_texto(v_aplicador) or None,
             }).execute()
             invalidar_cache_pet(pet_obj["id"])
             st.success("Vacina gravada com sucesso!")
@@ -1047,6 +1051,7 @@ def modal_editar_desparasitante(pet_obj):
     with c1:
         t_trat = st.selectbox("Tipo de Tratamento:", ["-- Selecione o tipo --", "Interna (Vermes)", "Externa (Carraças/Pulgas)", "Combinado"], index=0, key="m_d_tipo_vazio")
         n_prod = st.text_input("Produto:", value="", placeholder="Ex: Simparica, Drontal...", key="m_d_prod_vazio")
+        d_vinheta = st.text_input("Vinheta (L/Val)", key="m_d_vinheta")
     with c2:
         f_farm = st.selectbox(
             "Forma Farmacêutica:", 
@@ -1055,6 +1060,7 @@ def modal_editar_desparasitante(pet_obj):
             key="m_d_farm_vazia"
         )
         p_reg = st.number_input("Peso Atual do Pet (kg):", value=0.0, step=0.1, min_value=0.0, key="m_d_peso_vazio")
+        d_aplicador = st.text_input("Aplicador", key="m_d_aplicador")
 
     c_d1, c_d2 = st.columns(2)
     with c_d1:
@@ -1076,6 +1082,8 @@ def modal_editar_desparasitante(pet_obj):
                 "data_aplicacao": str(dt_ap),
                 "proxima_dose": str(dt_px),
                 "observacoes": f"Forma: {f_farm}",
+                "vinheta": limpar_texto(d_vinheta) or None,
+                "aplicador": limpar_texto(d_aplicador) or None,
             }).execute()
 
             if p_reg > 0:
@@ -1326,7 +1334,7 @@ else:
                     titulo_tipo = nomes_perfis.get(tipo, f"Perfis: {tipo}")
                     st.markdown(f"#### {titulo_tipo}")
                     st.dataframe(
-                        df_tipo.drop(columns=["id"], errors="ignore"),
+                        df_tipo.drop(columns=["id", "codigo"], errors="ignore"),
                         use_container_width=True,
                         hide_index=True,
                     )
@@ -1450,19 +1458,33 @@ else:
             if tipo_perfil == "Clinica":
                 st.info("ℹ️ Os perfis de Clínica têm permissão exclusiva para consulta de pets pelo nome do responsável.")
             else:
+                st.session_state.setdefault("cadastro_pet_versao", 0)
+                cadastro_pet_key = st.session_state.cadastro_pet_versao
                 with st.expander("➕ Cadastrar Novo Pet"):
                     col_np1, col_np2 = st.columns(2)
                     with col_np1:
-                        np_nome = st.text_input("Nome do Pet")
-                        np_raca = st.text_input("Raça", value="SRD")
-                        np_nasc = st.date_input("Data de Nascimento", date(2026, 6, 15))
+                        np_nome = st.text_input("Nome do Pet", key=f"cad_pet_nome_{cadastro_pet_key}")
+                        np_raca = st.text_input("Raça", value="SRD", key=f"cad_pet_raca_{cadastro_pet_key}")
+                        np_nasc = st.date_input(
+                            "Data de Nascimento",
+                            date(2026, 6, 15),
+                            key=f"cad_pet_nasc_{cadastro_pet_key}",
+                        )
                     with col_np2:
-                        np_sexo = st.selectbox("Sexo", ["Fêmea", "Macho"])
-                        np_pelo = st.selectbox("Tipo de Pêlo", ["Curto", "Longo", "Ondulado", "Liso"])
-                        np_peso = st.number_input("Peso Inicial (kg)", 1.5, step=0.1)
-                    np_foto = st.file_uploader("Foto do Pet", type=["png", "jpg", "jpeg"])
+                        np_sexo = st.selectbox("Sexo", ["Fêmea", "Macho"], key=f"cad_pet_sexo_{cadastro_pet_key}")
+                        np_pelo = st.selectbox(
+                            "Tipo de Pêlo",
+                            ["Curto", "Longo", "Ondulado", "Liso"],
+                            key=f"cad_pet_pelo_{cadastro_pet_key}",
+                        )
+                        np_peso = st.number_input("Peso Inicial (kg)", 1.5, step=0.1, key=f"cad_pet_peso_{cadastro_pet_key}")
+                    np_foto = st.file_uploader(
+                        "Foto do Pet",
+                        type=["png", "jpg", "jpeg"],
+                        key=f"cad_pet_foto_{cadastro_pet_key}",
+                    )
 
-                    if st.button("Salvar Pet", type="primary"):
+                    if st.button("Salvar Pet", type="primary", key=f"cad_pet_salvar_{cadastro_pet_key}"):
                         np_nome_l = limpar_texto(np_nome)
                         if not np_nome_l:
                             st.warning("O nome do pet é obrigatório.")
@@ -1489,6 +1511,7 @@ else:
                                         "foto_url": foto_b64,
                                     }).execute()
                                     st.session_state.pop("cache_pets", None)
+                                    st.session_state.cadastro_pet_versao += 1
                                     st.success("Pet cadastrado com sucesso!")
                                     st.rerun()
                                 except Exception as exc:
