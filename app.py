@@ -1258,7 +1258,11 @@ else:
                 if not df_tipo.empty:
                     titulo_tipo = nomes_perfis.get(tipo, f"Perfis: {tipo}")
                     st.markdown(f"#### {titulo_tipo}")
-                    st.dataframe(df_tipo, use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        df_tipo.drop(columns=["id"], errors="ignore"),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             
             st.markdown("#### ⚙️ Atualizar Utilizador")
             col_adm1, col_adm2, col_adm3 = st.columns(3)
