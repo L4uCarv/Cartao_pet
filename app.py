@@ -431,7 +431,7 @@ def invalidar_cache_pet(pet_id):
     st.session_state.pop(f"ninhadas_{pet_id}", None)
 
 # ==============================================================================
-# 5. GERADORES DE PDF COM GRÁFICOS NO FINAL DA PÁGINA 1
+# 5. GERADORES DE PDF (RELATÓRIOS ADMINISTRATIVOS ESPECÍFICOS)
 # ==============================================================================
 class CartaoControlePDF(FPDF):
     def __init__(self):
@@ -563,9 +563,7 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
     pdf.set_draw_color(226, 219, 208)
     pdf.line(margem, linha_totais, largura_pagina - margem, linha_totais)
 
-    # Gráficos inseridos no final da página 1
     if not tipos_perfis.empty:
-        # Gráfico de Pizza (Proporção de Perfis)
         figura, eixo = plt.subplots(figsize=(2.4, 1.8), dpi=160)
         eixo.pie(
             tipos_perfis.values,
@@ -583,7 +581,6 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
         imagem_pizza.seek(0)
         pdf.image(imagem_pizza, x=24, y=linha_totais + 3, w=65, h=45)
 
-        # Gráfico de Barras Vertical (Pets cadastrados por perfil)
         if "animais_cadastrados" in df_admin.columns:
             pets_por_perfil = df_admin.groupby("tipo_perfil")["animais_cadastrados"].sum()
             figura_b, eixo_b = plt.subplots(figsize=(2.6, 1.8), dpi=160)
@@ -602,6 +599,112 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
     pdf.set_font("Helvetica", "I", 7)
     pdf.set_text_color(120, 120, 120)
     pdf.cell(largura_util, 6, "Relatório gerado pelo Sistema Integrado de Saúde Pet", 0, 1, "C")
+
+    return obter_bytes_pdf(pdf)
+
+
+def gerar_pdf_historico_ativacao(df_admin, perfil_admin=None):
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    pdf.set_title("Histórico de Ativação dos Utilizadores")
+
+    perfil_admin = perfil_admin or {}
+    nome_emissor = perfil_admin.get("nome", "Administrador")
+    email_emissor = perfil_admin.get("email", "Não informado")
+
+    largura_pagina, altura_pagina = 210, 297
+    margem = 12
+    largura_util = largura_pagina - (margem * 2)
+    verde = (78, 135, 124)
+    texto = (47, 79, 72)
+
+    colunas = [("Nome", 50), ("E-mail", 60), ("Status / Ativação", 40), ("Data Pagamento", 36)]
+
+    pdf.set_text_color(*texto)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_xy(margem, 20)
+    pdf.cell(largura_util, 8, "HISTÓRICO DE ATIVAÇÃO DOS UTILIZADORES", 0, 1, "C")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(largura_util, 5, f"Emitido por: {nome_emissor} ({email_emissor}) | Data: {date.today().strftime('%d/%m/%Y')}", 0, 1, "C")
+
+    pdf.set_y(38)
+    pdf.set_fill_color(*verde)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 7)
+    for titulo, largura in colunas:
+        pdf.cell(largura, 6, titulo, 1, 0, "C", True)
+    pdf.ln()
+
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 7)
+    for _, row in df_admin.iterrows():
+        if pdf.get_y() > altura_pagina - 20:
+            pdf.add_page()
+            pdf.set_y(margem)
+        pdf.cell(50, 6, str(row.get("nome", ""))[:28], 1, 0, "L")
+        pdf.cell(60, 6, str(row.get("email", ""))[:35], 1, 0, "L")
+        pdf.cell(40, 6, str(row.get("status", "ativo")).upper(), 1, 0, "C")
+        pdf.cell(36, 6, str(row.get("data_pagamento", "-")), 1, 1, "C")
+
+    pdf.set_xy(margem, altura_pagina - 12)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_text_color(120, 120, 120)
+    pdf.cell(largura_util, 6, "Sistema Integrado de Saúde Pet", 0, 1, "C")
+
+    return obter_bytes_pdf(pdf)
+
+
+def gerar_pdf_historico_cadastramento(df_admin, perfil_admin=None):
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    pdf.set_title("Histórico de Cadastramento")
+
+    perfil_admin = perfil_admin or {}
+    nome_emissor = perfil_admin.get("nome", "Administrador")
+    email_emissor = perfil_admin.get("email", "Não informado")
+
+    largura_pagina, altura_pagina = 210, 297
+    margem = 12
+    largura_util = largura_pagina - (margem * 2)
+    verde = (78, 135, 124)
+    texto = (47, 79, 72)
+
+    colunas = [("Nome do Utilizador", 50), ("E-mail", 60), ("Tipo de Perfil", 40), ("Pets Registados", 36)]
+
+    pdf.set_text_color(*texto)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_xy(margem, 20)
+    pdf.cell(largura_util, 8, "HISTÓRICO DE CADASTRAMENTO DE UTILIZADORES", 0, 1, "C")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(largura_util, 5, f"Emitido por: {nome_emissor} ({email_emissor}) | Data: {date.today().strftime('%d/%m/%Y')}", 0, 1, "C")
+
+    pdf.set_y(38)
+    pdf.set_fill_color(*verde)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 7)
+    for titulo, largura in colunas:
+        pdf.cell(largura, 6, titulo, 1, 0, "C", True)
+    pdf.ln()
+
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 7)
+    for _, row in df_admin.iterrows():
+        if pdf.get_y() > altura_pagina - 20:
+            pdf.add_page()
+            pdf.set_y(margem)
+        pdf.cell(50, 6, str(row.get("nome", ""))[:28], 1, 0, "L")
+        pdf.cell(60, 6, str(row.get("email", ""))[:35], 1, 0, "L")
+        pdf.cell(40, 6, str(row.get("tipo_perfil", "Tutor")), 1, 0, "C")
+        pdf.cell(36, 6, str(row.get("animais_cadastrados", 0)), 1, 1, "C")
+
+    pdf.set_xy(margem, altura_pagina - 12)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_text_color(120, 120, 120)
+    pdf.cell(largura_util, 6, "Sistema Integrado de Saúde Pet", 0, 1, "C")
 
     return obter_bytes_pdf(pdf)
 
@@ -1460,39 +1563,66 @@ else:
             ).value_counts()
             df_admin["animais_cadastrados"] = df_admin["id"].map(contagem_pets).fillna(0).astype(int)
             df_admin["tipo_perfil"] = df_admin["tipo_perfil"].apply(normalizar_tipo_perfil)
-            ordem_perfis = ["ADMINISTRADOR", "Tutor", "Criador", "Clinica"]
-            nomes_perfis = {
-                "ADMINISTRADOR": "Administradores",
-                "Tutor": "Tutores",
-                "Criador": "Criadores",
-                "Clinica": "Clínicas Veterinárias",
-            }
-            tipos_existentes = df_admin["tipo_perfil"].dropna().unique().tolist()
-            tipos_para_exibir = ordem_perfis + [
-                tipo for tipo in tipos_existentes if tipo not in ordem_perfis
-            ]
-
-            st.caption(f"Total de perfis encontrados: {len(df_admin)}")
-            st.download_button(
-                "📄 Baixar relatório em PDF",
-                data=gerar_pdf_relatorio_administrativo(df_admin, perfil),
-                file_name="relatorio_administrativo_perfis.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="download_relatorio_admin",
-            )
-            for tipo in tipos_para_exibir:
-                df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
-                if not df_tipo.empty:
-                    titulo_tipo = nomes_perfis.get(tipo, f"Perfis: {tipo}")
-                    st.markdown(f"#### {titulo_tipo}")
-                    st.dataframe(
-                        df_tipo.drop(columns=["id", "codigo"], errors="ignore"),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
             
-            st.markdown("#### ⚙️ Atualizar Utilizador")
+            # --- TRÊS BOTÕES ALINHADOS PARA OS DIFERENTES RELATÓRIOS ---
+            col_b_rel1, col_b_rel2, col_b_rel3 = st.columns(3)
+            with col_b_rel1:
+                st.download_button(
+                    "📄 Relatório Geral",
+                    data=gerar_pdf_relatorio_administrativo(df_admin, perfil),
+                    file_name="relatorio_administrativo_geral.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_relatorio_admin",
+                )
+            with col_b_rel2:
+                st.download_button(
+                    "📄 Histórico de Ativação",
+                    data=gerar_pdf_historico_ativacao(df_admin, perfil),
+                    file_name="historico_ativacao_usuarios.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_historico_ativacao",
+                )
+            with col_b_rel3:
+                st.download_button(
+                    "📄 Histórico de Cadastramento",
+                    data=gerar_pdf_historico_cadastramento(df_admin, perfil),
+                    file_name="historico_cadastramento_usuarios.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_historico_cadastramento",
+                )
+
+            st.write("")
+            st.markdown("#### 👥 Lista Geral de Utilizadores & Controlo de Ativação")
+            
+            for idx_u, usr in df_admin.iterrows():
+                with st.container(border=True):
+                    col_u1, col_u2, col_u3, col_u4 = st.columns([2, 2, 1, 1.2])
+                    with col_u1:
+                        st.markdown(f"**Nome:** {usr.get('nome')}")
+                        st.markdown(f"**E-mail:** {usr.get('email')}")
+                    with col_u2:
+                        st.markdown(f"**Perfil:** {usr.get('tipo_perfil')}")
+                        st.markdown(f"**Pets:** {usr.get('animais_cadastrados', 0)}")
+                    with col_u3:
+                        status_atual = usr.get("status", "ativo")
+                        if status_atual == "ativo":
+                            st.markdown("🟢 **Ativo**")
+                        else:
+                            st.markdown("🔴 **Inativo**")
+                    with col_u4:
+                        novo_estado = "inativo" if status_atual == "ativo" else "ativo"
+                        label_botao = "Desativar" if status_atual == "ativo" else "Ativar"
+                        tipo_botao = "primary" if status_atual == "ativo" else "secondary"
+                        if st.button(label_botao, key=f"toggle_status_{usr['id']}", type=tipo_botao, use_container_width=True):
+                            supabase.table("tutores").update({"status": novo_estado}).eq("id", usr["id"]).execute()
+                            st.success(f"Utilizador {usr.get('nome')} alterado para {novo_estado}!")
+                            st.rerun()
+
+            st.divider()
+            st.markdown("#### ⚙️ Atualizar Registo Manualmente")
             col_adm1, col_adm2, col_adm3 = st.columns(3)
             with col_adm1:
                 email_alvo = st.selectbox("Selecione o e-mail do utilizador:", [t["email"] for t in todos_tutores])
