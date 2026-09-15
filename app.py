@@ -1203,10 +1203,10 @@ if not st.session_state.usuario:
         st.subheader("📝 Registo de Novo Utilizador")
         tipo_conta = st.radio(
             "Selecione o perfil:",
-            ["Tutor", "Criador", "Clínica Veterinária", "Administrador"],
+            ["Tutor", "Criador", "Clínica Veterinária"],
         )
 
-        if tipo_conta in ("Tutor", "Administrador"):
+        if tipo_conta == "Tutor":
             nome = limpar_texto(st.text_input("Nome Completo do Tutor"))
             email = limpar_texto(st.text_input("E-mail")).lower()
             senha = st.text_input("Palavra-passe", type="password")
