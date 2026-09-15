@@ -454,39 +454,6 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     fundo_caixa = (250, 248, 245)
 
     tipos_perfis = df_admin["tipo_perfil"].dropna().value_counts()
-    
-    # 1. Gráfico de Pizza no canto superior direito
-    if not tipos_perfis.empty:
-        figura, eixo = plt.subplots(figsize=(2.4, 2.0), dpi=160)
-        eixo.pie(
-            tipos_perfis.values,
-            labels=tipos_perfis.index,
-            autopct="%1.0f%%",
-            startangle=90,
-            colors=["#4E877C", "#D47A5B", "#6C8EBF", "#A5A5A5"],
-            textprops={"fontsize": 6},
-        )
-        eixo.set_title("Perfis (Pizza)", fontsize=7.5, fontweight="bold")
-        figura.tight_layout()
-        imagem_pizza = io.BytesIO()
-        figura.savefig(imagem_pizza, format="png", transparent=True)
-        plt.close(figura)
-        imagem_pizza.seek(0)
-        pdf.image(imagem_pizza, x=148, y=26, w=50, h=40)
-
-    # 2. Gráfico de Barras Verticais ao lado da caixa de resumo ou no topo esquerdo
-    if not tipos_perfis.empty:
-        figura_b, eixo_b = plt.subplots(figsize=(2.6, 2.0), dpi=160)
-        eixo_b.bar(tipos_perfis.index, tipos_perfis.values, color="#4E877C", width=0.6)
-        eixo_b.set_title("Perfis (Barras)", fontsize=7.5, fontweight="bold")
-        eixo_b.tick_params(axis='x', labelsize=6, rotation=15)
-        eixo_b.tick_params(axis='y', labelsize=6)
-        figura_b.tight_layout()
-        imagem_barras = io.BytesIO()
-        figura_b.savefig(imagem_barras, format="png", transparent=True)
-        plt.close(figura_b)
-        imagem_barras.seek(0)
-        pdf.image(imagem_barras, x=94, y=26, w=52, h=40)
 
     colunas = [
         ("Nome", 31),
@@ -562,15 +529,12 @@ def gerar_pdf_relatorio_administrativo(df_admin):
             pdf.ln()
 
     total_animais = int(df_admin.get("animais_cadastrados", pd.Series(dtype=int)).fillna(0).sum())
-    if pdf.get_y() + 34 > altura_pagina - 20:
+    if pdf.get_y() + 105 > altura_pagina - 12:
         pdf.add_page()
     pdf.ln(8)
-    
-    # Totais abaixo alinhados corretamente e de forma limpa
+
     y_totais = pdf.get_y()
-    pdf.set_draw_color(226, 219, 208)
-    pdf.line(margem, y_totais, largura_pagina - margem, y_totais)
-    
+
     pdf.set_xy(margem, y_totais + 3)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(*coral)
@@ -585,7 +549,41 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(40, 6, str(total_animais), 0, 1, "R")
 
-    pdf.set_xy(margem, y_totais + 18)
+    linha_totais = y_totais + 18
+    pdf.set_draw_color(226, 219, 208)
+    pdf.line(margem, linha_totais, largura_pagina - margem, linha_totais)
+
+    if not tipos_perfis.empty:
+        figura, eixo = plt.subplots(figsize=(2.4, 2.0), dpi=160)
+        eixo.pie(
+            tipos_perfis.values,
+            labels=tipos_perfis.index,
+            autopct="%1.0f%%",
+            startangle=90,
+            colors=["#4E877C", "#D47A5B", "#6C8EBF", "#A5A5A5"],
+            textprops={"fontsize": 6},
+        )
+        eixo.set_title("Perfis (Pizza)", fontsize=7.5, fontweight="bold")
+        figura.tight_layout()
+        imagem_pizza = io.BytesIO()
+        figura.savefig(imagem_pizza, format="png", transparent=True)
+        plt.close(figura)
+        imagem_pizza.seek(0)
+        pdf.image(imagem_pizza, x=24, y=linha_totais + 5, w=68, h=52)
+
+        figura_b, eixo_b = plt.subplots(figsize=(2.6, 2.0), dpi=160)
+        eixo_b.bar(tipos_perfis.index, tipos_perfis.values, color="#4E877C", width=0.6)
+        eixo_b.set_title("Perfis (Barras)", fontsize=7.5, fontweight="bold")
+        eixo_b.tick_params(axis="x", labelsize=6, rotation=15)
+        eixo_b.tick_params(axis="y", labelsize=6)
+        figura_b.tight_layout()
+        imagem_barras = io.BytesIO()
+        figura_b.savefig(imagem_barras, format="png", transparent=True)
+        plt.close(figura_b)
+        imagem_barras.seek(0)
+        pdf.image(imagem_barras, x=118, y=linha_totais + 5, w=68, h=52)
+
+    pdf.set_xy(margem, linha_totais + 64)
     pdf.set_font("Helvetica", "I", 7)
     pdf.set_text_color(120, 120, 120)
     pdf.cell(largura_util, 8, "Relatório gerado pelo Sistema Integrado de Saúde Pet", 0, 1, "C")
