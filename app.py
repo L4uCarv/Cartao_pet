@@ -439,7 +439,7 @@ class CartaoControlePDF(FPDF):
         self.set_auto_page_break(auto=False)
 
 
-def gerar_pdf_relatorio_administrativo(df_admin):
+def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
@@ -468,17 +468,16 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     pdf.set_text_color(*texto)
     pdf.set_font("Helvetica", "B", 15)
     pdf.set_xy(margem, 26)
-    pdf.cell(105, 8, "RELATÓRIO ADMINISTRATIVO", 0, 1, "L")
+    pdf.cell(largura_util, 8, "RELATÓRIO ADMINISTRATIVO", 0, 1, "C")
     pdf.set_font("Helvetica", "", 8)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(105, 5, "Perfis cadastrados e situação atual", 0, 1, "L")
 
     pdf.set_fill_color(*fundo_caixa)
     pdf.set_draw_color(226, 219, 208)
-    pdf.rect(margem, 68, largura_util, 27, "DF")
+    pdf.rect(margem, 52, largura_util, 38, "DF")
     pdf.set_text_color(*texto)
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_xy(margem + 5, 74)
+    pdf.set_xy(margem + 5, 57)
     pdf.cell(32, 5, "Data do relatório:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(55, 5, date.today().strftime("%d/%m/%Y"), 0, 0)
@@ -486,11 +485,19 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     pdf.cell(25, 5, "Total de perfis:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(0, 5, str(len(df_admin)), 0, 1)
-    pdf.set_xy(margem + 5, 83)
+    pdf.set_xy(margem + 5, 66)
     pdf.set_font("Helvetica", "B", 8)
     pdf.cell(32, 5, "Perfis representados:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(0, 5, ", ".join(str(tipo) for tipo in tipos_perfis.index), 0, 1)
+    perfil_admin = perfil_admin or {}
+    nome_emissor = perfil_admin.get("nome", "Administrador")
+    email_emissor = perfil_admin.get("email", "Não informado")
+    pdf.set_xy(margem + 5, 75)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.cell(32, 5, "Emitido por:", 0, 0)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 5, f"{nome_emissor} ({email_emissor})", 0, 1)
 
     def desenhar_cabecalho_tabela():
         pdf.set_fill_color(*verde)
@@ -500,7 +507,7 @@ def gerar_pdf_relatorio_administrativo(df_admin):
             pdf.cell(largura, 6, titulo, 1, 0, "C", True)
         pdf.ln()
 
-    pdf.set_y(103)
+    pdf.set_y(98)
     for indice_tipo, tipo in enumerate(df_admin["tipo_perfil"].dropna().unique()):
         df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
         altura_estimada = 15 + (len(df_tipo) * 5)
@@ -1460,7 +1467,7 @@ else:
             st.caption(f"Total de perfis encontrados: {len(df_admin)}")
             st.download_button(
                 "📄 Baixar relatório em PDF",
-                data=gerar_pdf_relatorio_administrativo(df_admin),
+                data=gerar_pdf_relatorio_administrativo(df_admin, perfil),
                 file_name="relatorio_administrativo_perfis.pdf",
                 mime="application/pdf",
                 use_container_width=True,
