@@ -454,23 +454,39 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     fundo_caixa = (250, 248, 245)
 
     tipos_perfis = df_admin["tipo_perfil"].dropna().value_counts()
+    
+    # 1. Gráfico de Pizza no canto superior direito
     if not tipos_perfis.empty:
-        figura, eixo = plt.subplots(figsize=(3.4, 2.7), dpi=160)
+        figura, eixo = plt.subplots(figsize=(2.4, 2.0), dpi=160)
         eixo.pie(
             tipos_perfis.values,
             labels=tipos_perfis.index,
             autopct="%1.0f%%",
             startangle=90,
             colors=["#4E877C", "#D47A5B", "#6C8EBF", "#A5A5A5"],
-            textprops={"fontsize": 7},
+            textprops={"fontsize": 6},
         )
-        eixo.set_title("Distribuição de perfis", fontsize=9, fontweight="bold")
+        eixo.set_title("Perfis (Pizza)", fontsize=7.5, fontweight="bold")
         figura.tight_layout()
-        imagem_grafico = io.BytesIO()
-        figura.savefig(imagem_grafico, format="png", transparent=True)
+        imagem_pizza = io.BytesIO()
+        figura.savefig(imagem_pizza, format="png", transparent=True)
         plt.close(figura)
-        imagem_grafico.seek(0)
-        pdf.image(imagem_grafico, x=124, y=29, w=62, h=49)
+        imagem_pizza.seek(0)
+        pdf.image(imagem_pizza, x=148, y=26, w=50, h=40)
+
+    # 2. Gráfico de Barras Verticais ao lado da caixa de resumo ou no topo esquerdo
+    if not tipos_perfis.empty:
+        figura_b, eixo_b = plt.subplots(figsize=(2.6, 2.0), dpi=160)
+        eixo_b.bar(tipos_perfis.index, tipos_perfis.values, color="#4E877C", width=0.6)
+        eixo_b.set_title("Perfis (Barras)", fontsize=7.5, fontweight="bold")
+        eixo_b.tick_params(axis='x', labelsize=6, rotation=15)
+        eixo_b.tick_params(axis='y', labelsize=6)
+        figura_b.tight_layout()
+        imagem_barras = io.BytesIO()
+        figura_b.savefig(imagem_barras, format="png", transparent=True)
+        plt.close(figura_b)
+        imagem_barras.seek(0)
+        pdf.image(imagem_barras, x=94, y=26, w=52, h=40)
 
     colunas = [
         ("Nome", 31),
@@ -480,12 +496,11 @@ def gerar_pdf_relatorio_administrativo(df_admin):
         ("Data Pag.", 30),
         ("Animais", 37),
     ]
-    pdf.set_draw_color(*verde)
-    pdf.set_line_width(0.8)
-    pdf.line(margem, 25, largura_pagina - margem, 25)
+    
+    # Removida a barra horizontal solta acima do cabeçalho
     pdf.set_text_color(*texto)
     pdf.set_font("Helvetica", "B", 15)
-    pdf.set_xy(margem, 30)
+    pdf.set_xy(margem, 26)
     pdf.cell(105, 8, "RELATÓRIO ADMINISTRATIVO", 0, 1, "L")
     pdf.set_font("Helvetica", "", 8)
     pdf.set_text_color(80, 80, 80)
@@ -493,10 +508,10 @@ def gerar_pdf_relatorio_administrativo(df_admin):
 
     pdf.set_fill_color(*fundo_caixa)
     pdf.set_draw_color(226, 219, 208)
-    pdf.rect(margem, 84, largura_util, 27, "DF")
+    pdf.rect(margem, 68, largura_util, 27, "DF")
     pdf.set_text_color(*texto)
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_xy(margem + 5, 90)
+    pdf.set_xy(margem + 5, 74)
     pdf.cell(32, 5, "Data do relatório:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(55, 5, date.today().strftime("%d/%m/%Y"), 0, 0)
@@ -504,7 +519,7 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     pdf.cell(25, 5, "Total de perfis:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(0, 5, str(len(df_admin)), 0, 1)
-    pdf.set_xy(margem + 5, 99)
+    pdf.set_xy(margem + 5, 83)
     pdf.set_font("Helvetica", "B", 8)
     pdf.cell(32, 5, "Perfis representados:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
@@ -518,7 +533,7 @@ def gerar_pdf_relatorio_administrativo(df_admin):
             pdf.cell(largura, 6, titulo, 1, 0, "C", True)
         pdf.ln()
 
-    pdf.set_y(119)
+    pdf.set_y(103)
     for indice_tipo, tipo in enumerate(df_admin["tipo_perfil"].dropna().unique()):
         df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
         altura_estimada = 15 + (len(df_tipo) * 5)
@@ -550,17 +565,27 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     if pdf.get_y() + 34 > altura_pagina - 20:
         pdf.add_page()
     pdf.ln(8)
+    
+    # Totais abaixo alinhados corretamente e de forma limpa
+    y_totais = pdf.get_y()
     pdf.set_draw_color(226, 219, 208)
-    pdf.line(95, pdf.get_y(), largura_pagina - margem, pdf.get_y())
-    pdf.set_xy(95, pdf.get_y() + 4)
+    pdf.line(margem, y_totais, largura_pagina - margem, y_totais)
+    
+    pdf.set_xy(margem, y_totais + 3)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(*coral)
-    pdf.cell(55, 6, "Total de perfis:", 0, 0, "L")
-    pdf.cell(0, 6, str(len(df_admin)), 0, 1, "R")
+    pdf.cell(largura_util - 40, 6, "Total de perfis:", 0, 0, "R")
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(40, 6, str(len(df_admin)), 0, 1, "R")
+
+    pdf.set_xy(margem, y_totais + 9)
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(55, 6, "Total de animais:", 0, 0, "L")
-    pdf.cell(0, 6, str(total_animais), 0, 1, "R")
+    pdf.cell(largura_util - 40, 6, "Total de animais:", 0, 0, "R")
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(40, 6, str(total_animais), 0, 1, "R")
+
+    pdf.set_xy(margem, y_totais + 18)
     pdf.set_font("Helvetica", "I", 7)
     pdf.set_text_color(120, 120, 120)
     pdf.cell(largura_util, 8, "Relatório gerado pelo Sistema Integrado de Saúde Pet", 0, 1, "C")
