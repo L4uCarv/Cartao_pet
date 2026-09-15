@@ -487,6 +487,9 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
     pdf.cell(0, 5, str(len(df_admin)), 0, 1)
     pdf.set_xy(margem + 5, 66)
     pdf.set_font("Helvetica", "B", 8)
+    pdf.cell(32, 5, "Emitido por:", 0, 0)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 5, f"{nome_emissor} ({email_emissor})", 0, 1)
     pdf.cell(32, 5, "Perfis representados:", 0, 0)
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(0, 5, ", ".join(str(tipo) for tipo in tipos_perfis.index), 0, 1)
@@ -495,9 +498,7 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
     email_emissor = perfil_admin.get("email", "Não informado")
     pdf.set_xy(margem + 5, 75)
     pdf.set_font("Helvetica", "B", 8)
-    pdf.cell(32, 5, "Emitido por:", 0, 0)
-    pdf.set_font("Helvetica", "", 8)
-    pdf.cell(0, 5, f"{nome_emissor} ({email_emissor})", 0, 1)
+       
 
     def desenhar_cabecalho_tabela():
         pdf.set_fill_color(*verde)
