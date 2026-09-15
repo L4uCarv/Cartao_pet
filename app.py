@@ -539,14 +539,12 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
 
     total_animais = int(df_admin.get("animais_cadastrados", pd.Series(dtype=int)).fillna(0).sum())
     
-    # Garante espaço suficiente para os totais e gráficos no final da página 1
     if pdf.get_y() + 75 > altura_pagina - 12:
         pdf.add_page()
     pdf.ln(4)
 
     y_totais = pdf.get_y()
 
-    # Totais rigorosamente alinhados à direita
     pdf.set_xy(margem, y_totais + 2)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(*coral)
@@ -567,7 +565,7 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
 
     # Gráficos inseridos no final da página 1
     if not tipos_perfis.empty:
-        # Gráfico de Pizza
+        # Gráfico de Pizza (Proporção de Perfis)
         figura, eixo = plt.subplots(figsize=(2.4, 1.8), dpi=160)
         eixo.pie(
             tipos_perfis.values,
@@ -585,18 +583,20 @@ def gerar_pdf_relatorio_administrativo(df_admin, perfil_admin=None):
         imagem_pizza.seek(0)
         pdf.image(imagem_pizza, x=24, y=linha_totais + 3, w=65, h=45)
 
-        # Gráfico de Barras Vertical
-        figura_b, eixo_b = plt.subplots(figsize=(2.6, 1.8), dpi=160)
-        eixo_b.bar(tipos_perfis.index, tipos_perfis.values, color="#4E877C", width=0.55)
-        eixo_b.set_title("Contagem por Perfil (Barras)", fontsize=7, fontweight="bold")
-        eixo_b.tick_params(axis="x", labelsize=6, rotation=10)
-        eixo_b.tick_params(axis="y", labelsize=6)
-        figura_b.tight_layout()
-        imagem_barras = io.BytesIO()
-        figura_b.savefig(imagem_barras, format="png", transparent=True)
-        plt.close(figura_b)
-        imagem_barras.seek(0)
-        pdf.image(imagem_barras, x=118, y=linha_totais + 3, w=68, h=45)
+        # Gráfico de Barras Vertical (Pets cadastrados por perfil)
+        if "animais_cadastrados" in df_admin.columns:
+            pets_por_perfil = df_admin.groupby("tipo_perfil")["animais_cadastrados"].sum()
+            figura_b, eixo_b = plt.subplots(figsize=(2.6, 1.8), dpi=160)
+            eixo_b.bar(pets_por_perfil.index, pets_por_perfil.values, color="#4E877C", width=0.55)
+            eixo_b.set_title("Pets por Perfil (Barras)", fontsize=7, fontweight="bold")
+            eixo_b.tick_params(axis="x", labelsize=6, rotation=10)
+            eixo_b.tick_params(axis="y", labelsize=6)
+            figura_b.tight_layout()
+            imagem_barras = io.BytesIO()
+            figura_b.savefig(imagem_barras, format="png", transparent=True)
+            plt.close(figura_b)
+            imagem_barras.seek(0)
+            pdf.image(imagem_barras, x=118, y=linha_totais + 3, w=68, h=45)
 
     pdf.set_xy(margem, altura_pagina - 12)
     pdf.set_font("Helvetica", "I", 7)
