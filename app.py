@@ -445,6 +445,27 @@ def gerar_pdf_relatorio_administrativo(df_admin):
     pdf.add_page()
     pdf.set_title("Relatório Administrativo - Perfis")
 
+    margens = 12
+    altura_pagina = 210
+    tipos_perfis = df_admin["tipo_perfil"].dropna().value_counts()
+    if not tipos_perfis.empty:
+        figura, eixo = plt.subplots(figsize=(6.2, 3.2), dpi=160)
+        eixo.pie(
+            tipos_perfis.values,
+            labels=tipos_perfis.index,
+            autopct="%1.0f%%",
+            startangle=90,
+            colors=["#4E877C", "#D47A5B", "#6C8EBF", "#A5A5A5"],
+            textprops={"fontsize": 8},
+        )
+        eixo.set_title("Distribuição de perfis", fontsize=11, fontweight="bold")
+        figura.tight_layout()
+        imagem_grafico = io.BytesIO()
+        figura.savefig(imagem_grafico, format="png", transparent=True)
+        plt.close(figura)
+        imagem_grafico.seek(0)
+        pdf.image(imagem_grafico, x=174, y=14, w=108, h=56)
+
     colunas = [
         ("Nome", 48),
         ("E-mail", 58),
@@ -454,21 +475,31 @@ def gerar_pdf_relatorio_administrativo(df_admin):
         ("Animais", 22),
     ]
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 8, "Relatório Administrativo - Perfis cadastrados", 0, 1, "C")
+    pdf.cell(155, 8, "Relatório Administrativo - Perfis cadastrados", 0, 1, "C")
     pdf.set_font("Helvetica", "", 8)
-    pdf.cell(0, 6, f"Total de perfis: {len(df_admin)}", 0, 1, "L")
+    pdf.cell(155, 6, f"Total de perfis: {len(df_admin)}", 0, 1, "L")
 
-    for tipo in df_admin["tipo_perfil"].dropna().unique():
-        df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
-        pdf.ln(3)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, f"Perfil: {tipo}", 0, 1, "L")
+    def desenhar_cabecalho_tabela():
         pdf.set_fill_color(78, 135, 124)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Helvetica", "B", 7)
         for titulo, largura in colunas:
             pdf.cell(largura, 6, titulo, 1, 0, "C", True)
         pdf.ln()
+
+    for indice_tipo, tipo in enumerate(df_admin["tipo_perfil"].dropna().unique()):
+        df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
+        altura_estimada = 13 + (len(df_tipo) * 5)
+        if indice_tipo == 0:
+            pdf.set_y(78)
+        elif pdf.get_y() + altura_estimada > altura_pagina - margens:
+            pdf.add_page()
+            pdf.set_y(margens)
+
+        pdf.ln(3)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 6, f"Perfil: {tipo}", 0, 1, "L")
+        desenhar_cabecalho_tabela()
 
         pdf.set_text_color(0, 0, 0)
         pdf.set_font("Helvetica", "", 7)
@@ -1009,9 +1040,12 @@ def modal_editar_vacina(pet_obj):
     chk_selecionados = []
     if v_escolha != "-- Selecione uma vacina --":
         st.write("**Doenças Prevenidas:**")
-        for d in INFO_VACINAS[v_escolha]["doencas"]:
-            if st.checkbox(d, value=True, key=f"m_chk_v_{d}"):
-                chk_selecionados.append(d)
+        doencas = INFO_VACINAS[v_escolha]["doencas"]
+        colunas_doencas = st.columns(min(3, len(doencas)))
+        for indice, doenca in enumerate(doencas):
+            with colunas_doencas[indice % len(colunas_doencas)]:
+                if st.checkbox(doenca, value=True, key=f"m_chk_v_{doenca}"):
+                    chk_selecionados.append(doenca)
                 
     c1, c2 = st.columns(2)
     with c1:
@@ -1227,9 +1261,16 @@ if not st.session_state.usuario:
             st.error("Perfil de conta inválido.")
             st.stop()
 
+        telefone = limpar_texto(st.text_input("Telefone", key="cadastro_telefone"))
+        endereco = limpar_texto(st.text_input("Endereço", key="cadastro_endereco"))
+
         if st.button("Concluir Registo", type="primary"):
             if not nome:
                 st.warning("O nome é obrigatório.")
+            elif not telefone:
+                st.warning("O telefone é obrigatório.")
+            elif not endereco:
+                st.warning("O endereço é obrigatório.")
             elif not validar_email(email):
                 st.warning("Introduza um e-mail válido.")
             elif not validar_senha(senha):
@@ -1247,6 +1288,8 @@ if not st.session_state.usuario:
                             "id": res.user.id,
                             "nome": nome,
                             "email": email,
+                            "telefone": telefone,
+                            "endereco": endereco,
                             "tipo_perfil": normalizar_tipo_perfil(tipo_perfil_val),
                             "status": "ativo",
                             "data_pagamento": str(date.today()),
@@ -1277,6 +1320,19 @@ else:
     perfil["tipo_perfil"] = tipo_perfil
     st.session_state.perfil = perfil
     user_id = st.session_state.usuario.id if st.session_state.get("usuario") else None
+
+    if tipo_perfil in {"Tutor", "Criador", "Clinica"}:
+        st.markdown(
+            """
+            <style>
+            [data-testid="stSidebar"],
+            [data-testid="stHeader"] {
+                display: none;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # Verificação de status ativo/inativo para utilizadores normais
     if perfil.get("status") == "inativo" and tipo_perfil != "ADMINISTRADOR":
@@ -1413,36 +1469,81 @@ else:
         # CONSULTA ESPECÍFICA PARA CLÍNICAS
         # ==============================================================================
         if tipo_perfil == "Clinica" and st.session_state.get("pagina_atual") == "Clinica_Consulta":
-            st.markdown("### 🔍 Consulta de Pets por Nome do Responsável (Clínica)")
-            nome_resp_pesquisa = st.text_input("Digite o nome do Tutor / Responsável:")
+            st.markdown("### 🔍 Consulta de Pets (Clínica)")
+            nome_resp_pesquisa = st.text_input("Digite o nome do Tutor, Criador ou Pet:")
             
             if st.button("Pesquisar", type="primary"):
                 if nome_resp_pesquisa.strip():
-                    # Buscar tutores que correspondam ao nome
-                    tutores_encontrados = supabase.table("tutores").select("id, nome, email, telefone").ilike("nome", f"%{nome_resp_pesquisa}%").execute().data or []
-                    if tutores_encontrados:
-                        for t in tutores_encontrados:
-                            st.markdown(f"#### 👤 Responsável: {t['nome']} ({t.get('email', 'Sem e-mail')})")
-                            pets_resp = supabase.table("pets").select("*").eq("tutor_id", t["id"]).execute().data or []
-                            if pets_resp:
-                                for pr in pets_resp:
-                                    with st.container(border=True):
-                                        st.markdown(f"🐾 **Pet:** {pr['nome']} | **Raça:** {pr.get('raca','SRD')} | **Sexo:** {pr.get('sexo','Macho')} | **Peso:** {pr.get('peso_atual', 0.0)} kg")
-                                        v_p, d_p = obter_dados_pet(pr["id"])
-                                        pdf_cli = gerar_pdf_cartao_final(t, pr, v_p, d_p)
-                                        st.download_button(
-                                            f"📥 Descarregar Cartão ({pr['nome']})",
-                                            data=pdf_cli,
-                                            file_name=f"cartao_{pr['nome']}.pdf",
-                                            mime="application/pdf",
-                                            key=f"dl_cli_{pr['id']}"
-                                        )
-                            else:
-                                st.info("Nenhum pet registado para este responsável.")
-                    else:
-                        st.warning("Nenhum responsável encontrado com esse nome.")
+                    termo_pesquisa = nome_resp_pesquisa.strip()
+                    try:
+                        tutores_encontrados = supabase.table("tutores").select(
+                            "id, nome, email, telefone, endereco"
+                        ).ilike("nome", f"%{termo_pesquisa}%").execute().data or []
+                        pets_por_responsavel = []
+                        for tutor_encontrado in tutores_encontrados:
+                            pets_por_responsavel.extend(
+                                supabase.table("pets").select("*").eq(
+                                    "tutor_id", tutor_encontrado["id"]
+                                ).execute().data or []
+                            )
+
+                        pets_por_nome = supabase.table("pets").select("*").ilike(
+                            "nome", f"%{termo_pesquisa}%"
+                        ).execute().data or []
+                        pets_encontrados = {
+                            pet["id"]: pet
+                            for pet in pets_por_responsavel + pets_por_nome
+                        }
+
+                        tutores_por_id = {
+                            tutor["id"]: tutor for tutor in tutores_encontrados
+                        }
+                        ids_tutores = {
+                            pet.get("tutor_id")
+                            for pet in pets_encontrados.values()
+                            if pet.get("tutor_id") not in tutores_por_id
+                        }
+                        for tutor_id in ids_tutores:
+                            tutor_res = supabase.table("tutores").select(
+                                "id, nome, email, telefone, endereco"
+                            ).eq("id", tutor_id).execute().data or []
+                            if tutor_res:
+                                tutores_por_id[tutor_id] = tutor_res[0]
+
+                        if not pets_encontrados:
+                            st.warning("Nenhum tutor, criador ou pet encontrado com esse nome.")
+                        else:
+                            for pet in pets_encontrados.values():
+                                tutor_pet = tutores_por_id.get(
+                                    pet.get("tutor_id"),
+                                    {"nome": "Responsável não encontrado", "email": "Sem e-mail"},
+                                )
+                                st.markdown(
+                                    f"#### 👤 Responsável: {tutor_pet['nome']} "
+                                    f"({tutor_pet.get('email', 'Sem e-mail')})"
+                                )
+                                with st.container(border=True):
+                                    st.markdown(
+                                        f"🐾 **Pet:** {pet['nome']} | "
+                                        f"**Raça:** {pet.get('raca', 'SRD')} | "
+                                        f"**Sexo:** {pet.get('sexo', 'Macho')} | "
+                                        f"**Peso:** {pet.get('peso_atual', 0.0)} kg"
+                                    )
+                                    vacinas_pet, desparasitacoes_pet = obter_dados_pet(pet["id"])
+                                    pdf_cli = gerar_pdf_cartao_final(
+                                        tutor_pet, pet, vacinas_pet, desparasitacoes_pet
+                                    )
+                                    st.download_button(
+                                        f"📥 Descarregar Cartão ({pet['nome']})",
+                                        data=pdf_cli,
+                                        file_name=f"cartao_{pet['nome']}.pdf",
+                                        mime="application/pdf",
+                                        key=f"dl_cli_{pet['id']}"
+                                    )
+                    except Exception as exc:
+                        st.error(f"Não foi possível realizar a pesquisa. {exc}")
                 else:
-                    st.warning("Insira um nome para realizar a pesquisa.")
+                    st.warning("Insira o nome de um tutor, criador ou pet para pesquisar.")
 
         # ==============================================================================
         # PÁGINA 1: PÁGINA INICIAL
@@ -1466,7 +1567,7 @@ else:
 
             # Restrição de cadastro para Clínicas (Clínicas não registam pets)
             if tipo_perfil == "Clinica":
-                st.info("ℹ️ Os perfis de Clínica têm permissão exclusiva para consulta de pets pelo nome do responsável.")
+                st.info("ℹ️ A Clínica Veterinária não cadastra pets. Use a pesquisa pelo nome do tutor, criador ou pet.")
             else:
                 st.session_state.setdefault("cadastro_pet_versao", 0)
                 cadastro_pet_key = st.session_state.cadastro_pet_versao
@@ -1494,38 +1595,67 @@ else:
                         key=f"cad_pet_foto_{cadastro_pet_key}",
                     )
 
+                    pets_atuais = len(meus_pets)
+                    limite_permitido = 2 if tipo_perfil == "Tutor" else 10 if tipo_perfil == "Criador" else 999
+                    precisa_associado = tipo_perfil == "Criador" and pets_atuais == 9
+
+                    if precisa_associado:
+                        st.markdown("#### 👤 Associado responsável pelo grupo de 10 pets")
+                        st.info("Antes de cadastrar o 10.º pet, identifique o responsável com nome, telefone e endereço.")
+                        associado_nome = st.text_input("Nome do responsável", key=f"associado_nome_{cadastro_pet_key}")
+                        associado_telefone = st.text_input("Telefone do responsável", key=f"associado_telefone_{cadastro_pet_key}")
+                        associado_endereco = st.text_input("Endereço do responsável", key=f"associado_endereco_{cadastro_pet_key}")
+                    else:
+                        associado_nome = ""
+                        associado_telefone = ""
+                        associado_endereco = ""
+
                     if st.button("Salvar Pet", type="primary", key=f"cad_pet_salvar_{cadastro_pet_key}"):
                         np_nome_l = limpar_texto(np_nome)
                         if not np_nome_l:
                             st.warning("O nome do pet é obrigatório.")
+                        elif pets_atuais >= limite_permitido:
+                            st.warning(f"⚠️ Atingiu o limite máximo de {limite_permitido} pets permitidos para o seu perfil ({tipo_perfil}).")
+                        elif precisa_associado and not all(
+                            limpar_texto(valor)
+                            for valor in (associado_nome, associado_telefone, associado_endereco)
+                        ):
+                            st.warning("Preencha o nome, telefone e endereço do responsável antes de cadastrar o 10.º pet.")
                         else:
-                            # Validação de Limites por Perfil
-                            pets_atuais = len(meus_pets)
-                            limite_permitido = 2 if tipo_perfil == "Tutor" else 4 if tipo_perfil == "Criador" else 999
-                            
-                            if pets_atuais >= limite_permitido:
-                                st.warning(f"⚠️ Atingiu o limite máximo de {limite_permitido} pets permitidos para o seu perfil ({tipo_perfil}).")
-                            else:
-                                foto_b64 = carregar_imagem_base64(np_foto)
-                                garantir_autenticacao_ativa()
-                                try:
-                                    supabase.table("pets").insert({
-                                        "tutor_id": user_id,
-                                        "criador_original_id": user_id,
-                                        "nome": np_nome_l,
-                                        "raca": limpar_texto(np_raca, "SRD"),
-                                        "data_nascimento": str(np_nasc),
-                                        "sexo": np_sexo,
-                                        "pelo": np_pelo,
-                                        "peso_atual": safe_float(np_peso, 0.0),
-                                        "foto_url": foto_b64,
+                            foto_b64 = carregar_imagem_base64(np_foto)
+                            garantir_autenticacao_ativa()
+                            try:
+                                associado_id = None
+                                if precisa_associado:
+                                    associado_res = supabase.table("associados").insert({
+                                        "criador_id": user_id,
+                                        "nome": limpar_texto(associado_nome),
+                                        "telefone": limpar_texto(associado_telefone),
+                                        "endereco": limpar_texto(associado_endereco),
+                                        "grupo_numero": (pets_atuais // 10) + 1,
                                     }).execute()
-                                    st.session_state.pop("cache_pets", None)
-                                    st.session_state.cadastro_pet_versao += 1
-                                    st.success("Pet cadastrado com sucesso!")
-                                    st.rerun()
-                                except Exception as exc:
-                                    st.error(f"Não foi possível guardar o pet. {exc}")
+                                    associado_id = associado_res.data[0]["id"]
+
+                                dados_pet = {
+                                    "tutor_id": user_id,
+                                    "criador_original_id": user_id,
+                                    "nome": np_nome_l,
+                                    "raca": limpar_texto(np_raca, "SRD"),
+                                    "data_nascimento": str(np_nasc),
+                                    "sexo": np_sexo,
+                                    "pelo": np_pelo,
+                                    "peso_atual": safe_float(np_peso, 0.0),
+                                    "foto_url": foto_b64,
+                                }
+                                if associado_id:
+                                    dados_pet["associado_id"] = associado_id
+                                supabase.table("pets").insert(dados_pet).execute()
+                                st.session_state.pop("cache_pets", None)
+                                st.session_state.cadastro_pet_versao += 1
+                                st.success("Pet cadastrado com sucesso!")
+                                st.rerun()
+                            except Exception as exc:
+                                st.error(f"Não foi possível guardar o pet. {exc}")
 
             st.write("")
 

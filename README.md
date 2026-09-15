@@ -21,7 +21,8 @@ streamlit run app.py
 1. Faça upload deste repositório para o GitHub.
 2. Crie um app no Streamlit Community Cloud.
 3. Conecte o repositório.
-4. Configure as credenciais necessárias diretamente no painel do Streamlit Cloud.
-5. Inicie o deploy.
+4. Execute o script [supabase_associados.sql](supabase_associados.sql) no SQL Editor do Supabase.
+5. Configure as credenciais necessárias diretamente no painel do Streamlit Cloud.
+6. Inicie o deploy.
 
 > A aplicação já lê as variáveis de ambiente e secrets do Streamlit, então funciona tanto localmente quanto em部署.
