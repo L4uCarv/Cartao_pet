@@ -440,81 +440,130 @@ class CartaoControlePDF(FPDF):
 
 
 def gerar_pdf_relatorio_administrativo(df_admin):
-    pdf = FPDF(orientation="L", unit="mm", format="A4")
-    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=False)
     pdf.add_page()
     pdf.set_title("Relatório Administrativo - Perfis")
 
-    margens = 12
-    altura_pagina = 210
+    largura_pagina, altura_pagina = 210, 297
+    margem = 12
+    largura_util = largura_pagina - (margem * 2)
+    verde = (78, 135, 124)
+    coral = (212, 122, 91)
+    texto = (47, 79, 72)
+    fundo_caixa = (250, 248, 245)
+
     tipos_perfis = df_admin["tipo_perfil"].dropna().value_counts()
     if not tipos_perfis.empty:
-        figura, eixo = plt.subplots(figsize=(6.2, 3.2), dpi=160)
+        figura, eixo = plt.subplots(figsize=(3.4, 2.7), dpi=160)
         eixo.pie(
             tipos_perfis.values,
             labels=tipos_perfis.index,
             autopct="%1.0f%%",
             startangle=90,
             colors=["#4E877C", "#D47A5B", "#6C8EBF", "#A5A5A5"],
-            textprops={"fontsize": 8},
+            textprops={"fontsize": 7},
         )
-        eixo.set_title("Distribuição de perfis", fontsize=11, fontweight="bold")
+        eixo.set_title("Distribuição de perfis", fontsize=9, fontweight="bold")
         figura.tight_layout()
         imagem_grafico = io.BytesIO()
         figura.savefig(imagem_grafico, format="png", transparent=True)
         plt.close(figura)
         imagem_grafico.seek(0)
-        pdf.image(imagem_grafico, x=174, y=14, w=108, h=56)
+        pdf.image(imagem_grafico, x=124, y=29, w=62, h=49)
 
     colunas = [
-        ("Nome", 48),
-        ("E-mail", 58),
-        ("Perfil", 34),
-        ("Status", 24),
-        ("Data Pagamento", 34),
-        ("Animais", 22),
+        ("Nome", 31),
+        ("E-mail", 42),
+        ("Perfil", 25),
+        ("Status", 21),
+        ("Data Pag.", 30),
+        ("Animais", 37),
     ]
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(155, 8, "Relatório Administrativo - Perfis cadastrados", 0, 1, "C")
+    pdf.set_draw_color(*verde)
+    pdf.set_line_width(0.8)
+    pdf.line(margem, 25, largura_pagina - margem, 25)
+    pdf.set_text_color(*texto)
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_xy(margem, 30)
+    pdf.cell(105, 8, "RELATÓRIO ADMINISTRATIVO", 0, 1, "L")
     pdf.set_font("Helvetica", "", 8)
-    pdf.cell(155, 6, f"Total de perfis: {len(df_admin)}", 0, 1, "L")
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(105, 5, "Perfis cadastrados e situação atual", 0, 1, "L")
+
+    pdf.set_fill_color(*fundo_caixa)
+    pdf.set_draw_color(226, 219, 208)
+    pdf.rect(margem, 84, largura_util, 27, "DF")
+    pdf.set_text_color(*texto)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_xy(margem + 5, 90)
+    pdf.cell(32, 5, "Data do relatório:", 0, 0)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(55, 5, date.today().strftime("%d/%m/%Y"), 0, 0)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.cell(25, 5, "Total de perfis:", 0, 0)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 5, str(len(df_admin)), 0, 1)
+    pdf.set_xy(margem + 5, 99)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.cell(32, 5, "Perfis representados:", 0, 0)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 5, ", ".join(str(tipo) for tipo in tipos_perfis.index), 0, 1)
 
     def desenhar_cabecalho_tabela():
-        pdf.set_fill_color(78, 135, 124)
+        pdf.set_fill_color(*verde)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_font("Helvetica", "B", 6.5)
         for titulo, largura in colunas:
             pdf.cell(largura, 6, titulo, 1, 0, "C", True)
         pdf.ln()
 
+    pdf.set_y(119)
     for indice_tipo, tipo in enumerate(df_admin["tipo_perfil"].dropna().unique()):
         df_tipo = df_admin[df_admin["tipo_perfil"] == tipo]
-        altura_estimada = 13 + (len(df_tipo) * 5)
-        if indice_tipo == 0:
-            pdf.set_y(78)
-        elif pdf.get_y() + altura_estimada > altura_pagina - margens:
+        altura_estimada = 15 + (len(df_tipo) * 5)
+        if indice_tipo > 0 and pdf.get_y() + altura_estimada > altura_pagina - 35:
             pdf.add_page()
-            pdf.set_y(margens)
+            pdf.set_y(margem)
 
-        pdf.ln(3)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, f"Perfil: {tipo}", 0, 1, "L")
+        pdf.set_text_color(*texto)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.cell(largura_util, 7, f"Perfil: {tipo}", 0, 1, "L")
         desenhar_cabecalho_tabela()
 
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Helvetica", "", 7)
+        pdf.set_font("Helvetica", "", 6.5)
         for _, perfil in df_tipo.iterrows():
             valores = [
-                str(perfil.get("nome", ""))[:30],
-                str(perfil.get("email", ""))[:38],
-                str(perfil.get("tipo_perfil", ""))[:22],
-                str(perfil.get("status", ""))[:14],
+                str(perfil.get("nome", ""))[:23],
+                str(perfil.get("email", ""))[:30],
+                str(perfil.get("tipo_perfil", ""))[:17],
+                str(perfil.get("status", ""))[:12],
                 str(perfil.get("data_pagamento", ""))[:16],
                 str(perfil.get("animais_cadastrados", 0)),
             ]
             for valor, (_, largura) in zip(valores, colunas):
                 pdf.cell(largura, 5, valor, 1, 0, "L")
             pdf.ln()
+
+    total_animais = int(df_admin.get("animais_cadastrados", pd.Series(dtype=int)).fillna(0).sum())
+    if pdf.get_y() + 34 > altura_pagina - 20:
+        pdf.add_page()
+    pdf.ln(8)
+    pdf.set_draw_color(226, 219, 208)
+    pdf.line(95, pdf.get_y(), largura_pagina - margem, pdf.get_y())
+    pdf.set_xy(95, pdf.get_y() + 4)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(*coral)
+    pdf.cell(55, 6, "Total de perfis:", 0, 0, "L")
+    pdf.cell(0, 6, str(len(df_admin)), 0, 1, "R")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(55, 6, "Total de animais:", 0, 0, "L")
+    pdf.cell(0, 6, str(total_animais), 0, 1, "R")
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_text_color(120, 120, 120)
+    pdf.cell(largura_util, 8, "Relatório gerado pelo Sistema Integrado de Saúde Pet", 0, 1, "C")
 
     return obter_bytes_pdf(pdf)
 
